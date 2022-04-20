@@ -24,16 +24,13 @@ library(tfdatasets)
 WindQualityDataFrame <- read.csv("WineQT.csv")
 
 # Various syntax for R dataframes
-summary(irisdf)
+summary(WindQualityDataFrame)
 
-head(irisdf)
+head(WindQualityDataFrame)
 
-# You can refer to columns by name or by number:
-head(irisdf[1]) # head takes the first few elements
+head(WindQualityDataFrame$quality)
 
-head(irisdf$sepal.length)
-
-head(irisdf["sepal.length"])
+#head(irisdf["sepal.length"])
 ```
 
 ## Including Plots
