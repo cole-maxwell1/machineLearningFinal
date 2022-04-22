@@ -23,6 +23,8 @@ library(tensorflow)
 #Loading a csv file
 WineQualityDataFrame <- read.csv("WineQT.csv")
 
+WineQualityDataFrame <- subset(WineQualityDataFrame, select = -c(Id))
+
 # Various syntax for R dataframes
 summary(WineQualityDataFrame)
 
@@ -56,11 +58,31 @@ yTest <- to_categorical(testing$quality, num_classes = 6)
 
 ## Neural network for the iris example
 
+This is where we tried to improve our accuracy. One way we found that was somewhat successful
+was to increase the number of epochs. We think Elena chose 20 epochs because she had a smaller data
+set but since ours was larger we needed more. We found that after 300 we got vastly diminishing
+returns, so we settled on 300 for the time being. We are still looking at ways of improving accuracy.
+
+initial accuracy -> ~43%
+drop Id feature -> no improvement in accuracy
+increase epochs to 100 -> accuracy raised to ~53%
+increase epochs to 1000 -> accuracy raised to ~67%
+decrease epochs to 300 -> accuracy lowered to ~60%
+increase units from 64 to 128 in first layer -> ~56%
+increase input_shape from 4 to 11 -> ~80%
+increase first layer units from 64 to 128 -> ~81%
+increase second layer units from 64 to 128 -> ~88%
+
 ```{r}
 
 model = keras_model_sequential() %>%
-  layer_dense(units = 64, activation = "relu",input_shape=(4)) %>%
-  layer_dense(units = 64, activation = "relu") %>%
+  layer_dense(units = 128, activation = "relu",input_shape=(11)) %>%
+  layer_dense(units = 128, activation = "relu") %>%
+  layer_dropout(rate = 0.25) %>%
+  layer_dense(units = 128, activation = "relu") %>%
+  layer_dense(units = 128, activation = "relu") %>%
+  layer_dense(units = 128, activation = "relu") %>%
+  layer_dropout(rate = 0.25) %>%
   layer_dense(units = ncol(yTr), activation = "softmax")
 
 
@@ -70,14 +92,14 @@ model %>% compile(
   metrics = "accuracy"
 )
 
-xTr <- as.matrix(training[,1:4]) # need to convert to a matrix
-xTest <- as.matrix(testing[,1:4])
+xTr <- as.matrix(training[,1:11]) # need to convert to a matrix
+xTest <- as.matrix(testing[,1:11])
 
 model %>% 
   fit(
     x = xTr, # input is the first 4 columns of the dataframe
     y = yTr, # label is the last column
-    epochs = 20
+    epochs = 300
   )
 
 ```
