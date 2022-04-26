@@ -2,7 +2,9 @@
 title: "FinalProject"
 author: "Cole Maxwell"
 date: "4/18/2022"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -18,12 +20,29 @@ When you click the **Knit** button a document will be generated that includes bo
 ```{r cars}
 library(keras)
 library(tensorflow)
+library(tidyverse)
 
 
 #Loading a csv file
 WineQualityDataFrame <- read.csv("WineQT.csv")
 
-WineQualityDataFrame <- subset(WineQualityDataFrame, select = -c(Id))
+
+#WineQualityDataFrame <- subset(WineQualityDataFrame, select = -c(Id))
+WineQualityDataFrame <-
+  subset(
+    WineQualityDataFrame,
+    select = c(
+      fixed.acidity,
+      volatile.acidity,
+      citric.acid,
+      free.sulfur.dioxide,
+      total.sulfur.dioxide,
+      pH,
+      sulphates,
+      alcohol,
+      quality
+    )
+  )
 
 # Various syntax for R dataframes
 summary(WineQualityDataFrame)
@@ -37,7 +56,7 @@ head(WineQualityDataFrame$quality)
 ## Splitting data into training and testing
 
 ```{r}
-sample_size <- 120
+sample_size <- 900
 set.seed(1234) # setting random seed to make results repeatable
 
 
@@ -73,46 +92,67 @@ increase input_shape from 4 to 11 -> ~80%
 increase first layer units from 64 to 128 -> ~81%
 increase second layer units from 64 to 128 -> ~88%
 
-```{r}
 
-model = keras_model_sequential() %>%
-  layer_dense(units = 128, activation = "relu",input_shape=(11)) %>%
-  layer_dense(units = 128, activation = "relu") %>%
-  layer_dropout(rate = 0.25) %>%
-  layer_dense(units = 128, activation = "relu") %>%
-  layer_dense(units = 128, activation = "relu") %>%
-  layer_dense(units = 128, activation = "relu") %>%
-  layer_dropout(rate = 0.25) %>%
+increased the sample_size from 120 to 500 -> increased 43% to 57% accuracy 
+Removed two layers and had only one dropout layer at 25% -> accuracy: 0.5941
+Removed two layers, removed dropout rate, now only look at 7 features, added regularization to second hidden layer -> 0.6277056
+added third hidden layer, reduced first layer from 128 to 7 nodes, added regularization to three hidden layers -> 0.5844156
+removed regularization from middle hidden layer -> 0.5454546
+removed regularization from first hidden layer -> 0.5887446
+add regularization to middle layer -> 0.5627705
+7 hidden layer, layer 1 128 nodes, layers 2-7 64 nodes, regularization on layers 4 and 7 -> 0.5021645
+add bias of 2.0 to first layer -> 0.5454546
+3 hidden layers, regularization on last 2, bias of 2.0 on first layer -> 0.4935065
+same as above but reg on hidden layers 1 and 3 -> 0.5324675
+increase nodes in first layer back up from 7 to 128 -> 0.6190476
+move bias from input to output node -> 0.5584416
+add alcohol col as a parameter -> 100% (not the good 100 tho lol)
+reduce nodes in input layer to 8 from 128 -> 100%
+L1 = https://www.analyticssteps.com/blogs/l2-and-l1-regularization-machine-learning
+
+Wow!!! Changed loss to binary_crossentropy -> accuracy: 0.8773
+No increase in accuracy by changing epochs to 300
+```{r, echo=FALSE}
+
+wineModel = keras_model_sequential() %>%
+  layer_dense(units = 64, activation = "relu",input_shape=(8), regularizer_l1(l = 0.01)) %>%
+  layer_dense(units = 64, activation = "relu", regularizer_l1(l = 0.01)) %>%
+  layer_dense(units = 64, activation = "relu", regularizer_l1(l = 0.01)) %>%
+  layer_dense(units = 64, activation = "relu", regularizer_l1(l = 0.01)) %>%
   layer_dense(units = ncol(yTr), activation = "softmax")
 
 
-model %>% compile(
-  loss = "categorical_crossentropy",
+wineModel %>% compile(
+  loss = "binary_crossentropy",
   optimizer = "adam", #optimizer_rmsprop(),
   metrics = "accuracy"
 )
 
-xTr <- as.matrix(training[,1:11]) # need to convert to a matrix
-xTest <- as.matrix(testing[,1:11])
+xTr <- as.matrix(training[,1:8]) # need to convert to a matrix
+xTest <- as.matrix(testing[,1:8])
 
-model %>% 
+history <- wineModel %>% 
   fit(
     x = xTr, # input is the first 4 columns of the dataframe
     y = yTr, # label is the last column
-    epochs = 300
+    epochs = 200
   )
 
+```
+```{r}
+plot(history)
+summary(wineModel)
 ```
 
 # Evaluate the model
 ```{r}
-model %>% evaluate(xTest, yTest)
+wineModel %>% evaluate(xTest, yTest)
 
 # Predicting likelihood of all categories:
-result <- model %>% predict(xTest)
+result <- wineModel %>% predict(xTest)
 
 result
 
-testing[,5]
+testing[,8]
 
 ```
