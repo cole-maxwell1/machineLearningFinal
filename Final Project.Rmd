@@ -27,22 +27,9 @@ library(tidyverse)
 WineQualityDataFrame <- read.csv("WineQT.csv")
 
 
-#WineQualityDataFrame <- subset(WineQualityDataFrame, select = -c(Id))
 WineQualityDataFrame <-
-  subset(
-    WineQualityDataFrame,
-    select = c(
-      fixed.acidity,
-      volatile.acidity,
-      citric.acid,
-      free.sulfur.dioxide,
-      total.sulfur.dioxide,
-      pH,
-      sulphates,
-      alcohol,
-      quality
-    )
-  )
+  subset(WineQualityDataFrame,
+         select = -c(Id))
 
 # Various syntax for R dataframes
 summary(WineQualityDataFrame)
@@ -51,6 +38,11 @@ head(WineQualityDataFrame)
 
 head(WineQualityDataFrame$quality)
 
+```
+```{r}
+# Evaluation of the correlation variables
+WineQualityCorrelation <- cor(WineQualityMatrix)
+heatmap(WineQualityCorrelation, margins = c(10, 10))
 ```
 
 ## Splitting data into training and testing
@@ -75,7 +67,7 @@ yTest <- to_categorical(testing$quality, num_classes = 6)
 
 ```
 
-## Neural network for the iris example
+## Neural network for Wine Quality
 
 This is where we tried to improve our accuracy. One way we found that was somewhat successful
 was to increase the number of epochs. We think Elena chose 20 epochs because she had a smaller data
@@ -115,10 +107,10 @@ No increase in accuracy by changing epochs to 300
 ```{r, echo=FALSE}
 
 wineModel = keras_model_sequential() %>%
-  layer_dense(units = 64, activation = "relu",input_shape=(8), regularizer_l1(l = 0.01)) %>%
-  layer_dense(units = 64, activation = "relu", regularizer_l1(l = 0.01)) %>%
-  layer_dense(units = 64, activation = "relu", regularizer_l1(l = 0.01)) %>%
-  layer_dense(units = 64, activation = "relu", regularizer_l1(l = 0.01)) %>%
+  layer_dense(units = 32, activation = "relu",input_shape=(11), regularizer_l1(l = 0.01)) %>%
+  layer_dense(units = 32, activation = "relu", regularizer_l1(l = 0.01)) %>%
+  layer_dense(units = 32, activation = "relu", regularizer_l1(l = 0.01)) %>%
+  layer_dense(units = 32, activation = "relu", regularizer_l1(l = 0.01)) %>%
   layer_dense(units = ncol(yTr), activation = "softmax")
 
 
@@ -128,8 +120,8 @@ wineModel %>% compile(
   metrics = "accuracy"
 )
 
-xTr <- as.matrix(training[,1:8]) # need to convert to a matrix
-xTest <- as.matrix(testing[,1:8])
+xTr <- as.matrix(training[,1:11]) # need to convert to a matrix
+xTest <- as.matrix(testing[,1:11])
 
 history <- wineModel %>% 
   fit(
@@ -153,6 +145,6 @@ result <- wineModel %>% predict(xTest)
 
 result
 
-testing[,8]
+testing[,11]
 
 ```
