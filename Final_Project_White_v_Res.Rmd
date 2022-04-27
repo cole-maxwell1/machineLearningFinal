@@ -3,6 +3,7 @@ title: "FinalProject"
 author: "Cole Maxwell"
 date: "4/18/2022"
 output:
+  pdf_document: default
   html_document: default
 ---
 
@@ -10,110 +11,61 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# Wine Data Machine Learning Models
+## R Markdown
 
-These data were obtained from the University of California Irvine's Machine Learning Repository. These data are the results of a chemical analysis of wines grown in the same region in Italy but derived from three different cultivars. These models attempt to predict they `Type` of wine (White or Red) and determine the quality of both white and red wines.
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
 
-## Data Pre-Processing 
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
 
-```{r, style="display: flex;"}
-library(knitr)
+```{r cars}
 library(keras)
 library(tensorflow)
-library(ggplot2)
+library(tidyverse)
 
 
-#Loading a csv file30
+#Loading a csv file
 WhiteWineQualityDataFrame <- read.csv("winequality-white.csv", sep = ";")
+WhiteWineQualityDataFrame["Type"] <- 0
 RedWineQualityDataFrame <- read.csv("winequality-red.csv", sep = ";")
+RedWineQualityDataFrame ["Type"] <- 1
 WineQualityDataFrame <- rbind(WhiteWineQualityDataFrame, RedWineQualityDataFrame)
 
+WineQualityDataFrame <- subset(WineQualityDataFrame, select = -c(quality))
 
 # Various syntax for R dataframes
-
 summary(WineQualityDataFrame)
-head(WineQualityDataFrame) %>% kable()
+
+head(WineQualityDataFrame)
+
+head(WineQualityDataFrame$quality)
 
 ```
-
-\clearpage
-
-## Exploritory Analysis 
 ```{r}
 # Evaluation of the correlation variables
-WineQualityMatrix <- data.matrix(WineQualityDataFrame)
 WineQualityCorrelation <- cor(WineQualityMatrix)
-
-# Generate a heatmap of correlations
-heatmap(WineQualityCorrelation, 
-        margins = c(8, 8), 
-        main = "Vaiable Correspondence with Quality",
-        )
-```
-
-\clearpage
-
-```{r}
-table(WineQualityDataFrame$quality) %>% 
-  kable(col.names = c("Quality Level", "Frequency"),
-        )
-
-hist(WineQualityDataFrame$quality, 
-     xlab = "Quality",
-     main = "Frequency of Each Quality Catagory"
-     )
-```
-### Dealing With Imbalanced Classification
-
-Machine Learning algorithms tend struggle when faced with imbalanced classification data sets. Sampling Methods can be used to modify an imbalanced data into balanced distribution using several different mechanisms
-
-Methods Include:
-
-1. Undersampling
-2. Oversampling
-3. Synthetic Data Generation
-4. Cost Sensitive Learning
-
-The ROSE (Random Over Sampling Examples) package helps us to generate artificial data based on sampling methods and smoothed bootstrap approach. This package has well defined accuracy functions to do the tasks quickly.
-
-
-
-```{r}
-library(ROSE)
-
-#WineQualityDataFrame <- as.factor(WineQualityDataFrame$quality)
-
-data_balanced_both <- ovun.sample(quality ~ ., data = WineQualityDataFrame, method = "both", p=0.5,                             N=2000, seed = 1)$data
+heatmap(WineQualityCorrelation, margins = c(10, 10))
 
 ```
 
-
-\clearpage
-
-### Splitting data into training and testing
+## Splitting data into training and testing
 
 ```{r}
-# Get 80% of the rows from the data set 
 sample_size <- round(nrow(WineQualityDataFrame) * 0.8)
-
-# setting random seed to make results repeatable
-set.seed(1234) 
+set.seed(1234) # setting random seed to make results repeatable
 
 
-# Subtract three from the quality column so quality levels start at zero
+# Subtract three to so quality levels start at zero
 WineQualityDataFrame$quality <- WineQualityDataFrame$quality -3
 
-# Separate data into training and testing sets
 picked <- sample(seq_len(nrow(WineQualityDataFrame)),size = sample_size)
 training <- WineQualityDataFrame[picked,]
 testing <- WineQualityDataFrame[-picked,]
 
 
 # Changing y into categorical data (performing one-hot encoding)
-yTr <- to_categorical(training$quality, num_classes = 7)
-yTest <- to_categorical(testing$quality, num_classes = 7)
 
-data_balanced_both <- ovun.sample(quality ~ ., data = WineQualityDataFrame, method = "both", p=0.5,                             N=2000, seed = 1)$data
+yTr <- to_categorical(training$Type, num_classes = 2)
+yTest <- to_categorical(testing$Type, num_classes = 2)
 
 ```
 
@@ -154,10 +106,10 @@ L1 = https://www.analyticssteps.com/blogs/l2-and-l1-regularization-machine-learn
 
 Wow!!! Changed loss to binary_crossentropy -> accuracy: 0.8773
 No increase in accuracy by changing epochs to 300
-```{r, echo=FALSE , eval=FALSE}
+```{r, echo=FALSE}
 
 wineModel = keras_model_sequential() %>%
-  layer_dense(units = 32, activation = "relu",input_shape=(11), regularizer_l1(l = 0.01)) %>%
+  layer_dense(units = 32, activation = "relu",input_shape=(10), regularizer_l1(l = 0.01)) %>%
   layer_dense(units = 32, activation = "relu", regularizer_l1(l = 0.01)) %>%
   layer_dense(units = 32, activation = "relu", regularizer_l1(l = 0.01)) %>%
   layer_dense(units = 32, activation = "relu", regularizer_l1(l = 0.01)) %>%
@@ -170,8 +122,8 @@ wineModel %>% compile(
   metrics = "accuracy"
 )
 
-xTr <- as.matrix(training[,1:11]) # need to convert to a matrix
-xTest <- as.matrix(testing[,1:11])
+xTr <- as.matrix(training[,1:10]) # need to convert to a matrix
+xTest <- as.matrix(testing[,1:10])
 
 history <- wineModel %>% 
   fit(
@@ -181,13 +133,13 @@ history <- wineModel %>%
   )
 
 ```
-```{r, eval=FALSE}
+```{r}
 plot(history)
 summary(wineModel)
 ```
 
 # Evaluate the model
-```{r, eval=FALSE}
+```{r}
 wineModel %>% evaluate(xTest, yTest)
 
 # Predicting likelihood of all categories:
