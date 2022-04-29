@@ -12,7 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Wine Data Machine Learning Models
 
-These data were obtained from the University of California Irvine's Machine Learning Repository. These data are the results of a chemical analysis of wines grown in the same region in Italy but derived from three different cultivars. These models attempt to predict they `Type` of wine (White or Red) and determine the quality of both white and red wines.
+These data were obtained from the University of California Irvine's Machine [Learning Repository](https://archive.ics.uci.edu/ml/datasets/wine). These data are the results of a chemical analysis of wines grown in the same region in Italy but derived from three different cultivars. These models attempt to predict they `Type` of wine (White or Red) and determine the `quality` of both white and red wines.
 
 ## Data Pre-Processing 
 
@@ -23,11 +23,10 @@ library(tensorflow)
 library(ggplot2)
 
 
-#Loading a csv file30
+#Loading wine csv files
 WhiteWineQualityDataFrame <- read.csv("winequality-white.csv", sep = ";")
 RedWineQualityDataFrame <- read.csv("winequality-red.csv", sep = ";")
 WineQualityDataFrame <- rbind(WhiteWineQualityDataFrame, RedWineQualityDataFrame)
-
 
 # Various syntax for R dataframes
 
@@ -63,7 +62,7 @@ hist(WineQualityDataFrame$quality,
      main = "Frequency of Each Quality Catagory"
      )
 ```
-### Dealing With Imbalanced Classification
+## Dealing With Imbalanced Classification
 
 Machine Learning algorithms tend struggle when faced with imbalanced classification data sets. Sampling Methods can be used to modify an imbalanced data into balanced distribution using several different mechanisms
 
@@ -78,12 +77,12 @@ The ROSE (Random Over Sampling Examples) package helps us to generate artificial
 
 
 
-```{r}
+```{r, eval=F}
 library(ROSE)
 
-#WineQualityDataFrame <- as.factor(WineQualityDataFrame$quality)
+WineQualityDataFrame$quality <- as.factor(WineQualityDataFrame$quality)
 
-data_balanced_both <- ovun.sample(quality ~ ., data = WineQualityDataFrame, method = "both", p=0.5,                             N=2000, seed = 1)$data
+data_balanced_both <- ovun.sample(quality ~ ., data = WineQualityDataFrame, method = "both", p=0.5, N=2000, seed = 1)$data
 
 ```
 
@@ -112,8 +111,6 @@ testing <- WineQualityDataFrame[-picked,]
 # Changing y into categorical data (performing one-hot encoding)
 yTr <- to_categorical(training$quality, num_classes = 7)
 yTest <- to_categorical(testing$quality, num_classes = 7)
-
-data_balanced_both <- ovun.sample(quality ~ ., data = WineQualityDataFrame, method = "both", p=0.5,                             N=2000, seed = 1)$data
 
 ```
 
@@ -154,6 +151,44 @@ L1 = https://www.analyticssteps.com/blogs/l2-and-l1-regularization-machine-learn
 
 Wow!!! Changed loss to binary_crossentropy -> accuracy: 0.8773
 No increase in accuracy by changing epochs to 300
+
+### Without Regularization
+```{r, echo=FALSE , eval=FALSE}
+
+wineModel = keras_model_sequential() %>%
+  layer_dense(units = 32, activation = "relu",input_shape=(11)) %>%
+  layer_dense(units = 32, activation = "relu") %>%
+  layer_dense(units = 32, activation = "relu") %>%
+  layer_dense(units = 32, activation = "relu")) %>%
+  layer_dense(units = ncol(yTr), activation = "softmax")
+
+
+wineModel %>% compile(
+  loss = "categorical_crossentropy",
+  optimizer = "adam", #optimizer_rmsprop(),
+  metrics = "accuracy"
+)
+
+xTr <- as.matrix(training[,1:11]) # need to convert to a matrix
+xTest <- as.matrix(testing[,1:11])
+
+history <- wineModel %>% 
+  fit(
+    x = xTr, # input is the first 4 columns of the dataframe
+    y = yTr, # label is the last column
+    epochs = 50
+  )
+
+```
+
+```{r, eval=FALSE}
+plot(history)
+summary(wineModel)
+wineModel %>% evaluate(xTest, yTest)
+```
+
+
+### With l1 Regularization
 ```{r, echo=FALSE , eval=FALSE}
 
 wineModel = keras_model_sequential() %>%
@@ -165,7 +200,7 @@ wineModel = keras_model_sequential() %>%
 
 
 wineModel %>% compile(
-  loss = "binary_crossentropy",
+  loss = "categorical_crossentropy",
   optimizer = "adam", #optimizer_rmsprop(),
   metrics = "accuracy"
 )
@@ -197,4 +232,100 @@ result
 
 testing[,11]
 
+```
+
+# Red and White Wine Classification
+
+```{r}
+#Loading a csv file
+WhiteWineQualityDataFrame <- read.csv("winequality-white.csv", sep = ";")
+WhiteWineQualityDataFrame["Type"] <- 0
+RedWineQualityDataFrame <- read.csv("winequality-red.csv", sep = ";")
+RedWineQualityDataFrame ["Type"] <- 1
+WineQualityDataFrame <- rbind(WhiteWineQualityDataFrame, RedWineQualityDataFrame)
+
+WineQualityDataFrame <- subset(WineQualityDataFrame, select = -c(quality))
+
+#WineQualityDataFrame <- subset(WineQualityDataFrame, select = -c(quality))
+
+```
+
+
+# Exploritory Analysis
+
+```{r}
+table(WineQualityDataFrame$Type) %>% 
+  kable(col.names = c("Type Level", "Frequency"),
+        )
+```
+
+```{r}
+library(ROSE)
+
+WineQualityDataFrame$quality <- as.factor(WineQualityDataFrame$Type)
+
+underSampledWine <- ovun.sample(Type ~ .,
+                                data = WineQualityDataFrame,
+                                method = "under",
+                                N=3000,
+                                seed = 1)$data
+
+
+table(underSampledWine$Type) %>% 
+  kable(col.names = c("Type Level", "Frequency"),
+        )
+```
+
+
+```{r}
+
+sample_size <- round(nrow(underSampledWine) * 0.8)
+set.seed(1234) # setting random seed to make results repeatable
+
+picked <- sample(seq_len(nrow(underSampledWine)),size = sample_size)
+training <- underSampledWine[picked,]
+testing <- underSampledWine[-picked,]
+
+
+# Changing y into categorical data (performing one-hot encoding)
+
+yTr <- to_categorical(training$Type, num_classes = 2)
+yTest <- to_categorical(testing$Type, num_classes = 2)
+
+```
+
+# Model
+
+```{r, echo=FALSE, eval=FALSE}
+
+wineModel = keras_model_sequential() %>%
+  layer_dense(units = 32, activation = "relu",input_shape=(11), regularizer_l1(l = 0.01)) %>%
+  layer_dense(units = 32, activation = "relu", regularizer_l1(l = 0.01)) %>%
+  layer_dense(units = 32, activation = "relu", regularizer_l1(l = 0.01)) %>%
+  layer_dense(units = 32, activation = "relu", regularizer_l1(l = 0.01)) %>%
+  layer_dense(units = ncol(yTr), activation = "softmax")
+
+
+wineModel %>% compile(
+  loss = "binary_crossentropy",
+  optimizer = "adam", #optimizer_rmsprop(),
+  metrics = "accuracy"
+)
+
+xTr <- as.matrix(training[,1:11]) # need to convert to a matrix
+xTest <- as.matrix(testing[,1:11])
+
+history <- wineModel %>% 
+  fit(
+    x = xTr, # input is the first 4 columns of the dataframe
+    y = yTr, # label is the last column
+    epochs = 50
+  )
+
+```
+
+```{r, eval=FALSE}
+plot(history)
+summary(wineModel)
+wineModel %>% evaluate(xTest, yTest)
 ```
