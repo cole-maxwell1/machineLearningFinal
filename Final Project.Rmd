@@ -1,7 +1,7 @@
 ---
-title: "FinalProject"
-author: "Cole Maxwell"
-date: "4/18/2022"
+title: "Wine Data Machine Learning Models"
+author: "Cole Maxwell, Hoomz Damte, and Noah Constable"
+date: "4/29/2022"
 output:
   html_document: default
 ---
@@ -10,11 +10,11 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# Wine Data Machine Learning Models
-
-These data were obtained from the University of California Irvine's Machine [Learning Repository](https://archive.ics.uci.edu/ml/datasets/wine). These data are the results of a chemical analysis of wines grown in the same region in Italy but derived from three different cultivars. These models attempt to predict they `Type` of wine (White or Red) and determine the `quality` of both white and red wines.
+These data were obtained from the University of California Irvine's (UCI) [Machine Learning Repository](https://archive.ics.uci.edu/ml/datasets/wine). These data are the results of a chemical analysis of wines grown in the same region in Italy but derived from three different cultivars. These models attempt to determine the `quality` of both white and red wines, and predict the `Type` of wine (White or Red).
 
 ## Data Pre-Processing 
+
+The data are loaded into r data frames from the `.csv` files obtained from the UCI Machine Learning Repository. There are two files that are separated by red and white types of wine. Once each file is loaded as a data frame, `r rbind()` is used to combine the two data frames into one larger frame that can be used for the machine learning models.
 
 ```{r, style="display: flex;"}
 library(knitr)
@@ -22,22 +22,31 @@ library(keras)
 library(tensorflow)
 library(ggplot2)
 
-
-#Loading wine csv files
+# Loading wine csv files
 WhiteWineQualityDataFrame <- read.csv("winequality-white.csv", sep = ";")
 RedWineQualityDataFrame <- read.csv("winequality-red.csv", sep = ";")
+
+# Combine the two data frames
 WineQualityDataFrame <- rbind(WhiteWineQualityDataFrame, RedWineQualityDataFrame)
 
-# Various syntax for R dataframes
-
-summary(WineQualityDataFrame)
-head(WineQualityDataFrame) %>% kable()
-
 ```
+The variables and their types types:
+```{r}
+str(WineQualityDataFrame) 
+```
+
+
+Summary Statistic of each variable in the data frame:
+```{r}
+summary(WineQualityDataFrame)
+```
+
 
 \clearpage
 
 ## Exploritory Analysis 
+
+To determinate if there is any clear pattern or relationship in these data a heatmap of the correlation between quality and each variable can be used. Darker (or more red) colors indicate higher correlation between two variables.
 ```{r}
 # Evaluation of the correlation variables
 WineQualityMatrix <- data.matrix(WineQualityDataFrame)
@@ -50,8 +59,11 @@ heatmap(WineQualityCorrelation,
         )
 ```
 
+There does not seem to be any clear pattern from this heatmap, and all variable like they be highly interconnected. There is no clear variable that should be removed to lower the complexity of the initial model. 
+
 \clearpage
 
+Next the frequency of each quality level should be evaluated. Since quality is the variable that the machine learning model should predict, each level should be "balanced" or have roughly equal observations at each level to ensure that the machine learning model can produce an accurate model. 
 ```{r}
 table(WineQualityDataFrame$quality) %>% 
   kable(col.names = c("Quality Level", "Frequency"),
@@ -62,38 +74,93 @@ hist(WineQualityDataFrame$quality,
      main = "Frequency of Each Quality Catagory"
      )
 ```
+
+From the frequency table and histogram there is a clear imbalance in these data. The `quality` levels 2, 3, and 4 are over represented in these data. If this imbalance in the data is not corrected it causes the performance of existing classifiers to get biased towards majority class. Machine learning algorithms also assume that the data set has balanced class distributions.
+
 ## Dealing With Imbalanced Classification
 
-Machine Learning algorithms tend struggle when faced with imbalanced classification data sets. Sampling Methods can be used to modify an imbalanced data into balanced distribution using several different mechanisms
+Sampling Methods can be used to modify an imbalanced data into balanced distribution using several different mechanisms:
 
-Methods Include:
-
-1. Undersampling
-2. Oversampling
+1. Under-sampling
+2. Over-sampling
 3. Synthetic Data Generation
 4. Cost Sensitive Learning
 
-The ROSE (Random Over Sampling Examples) package helps us to generate artificial data based on sampling methods and smoothed bootstrap approach. This package has well defined accuracy functions to do the tasks quickly.
+The ROSE (Random Over Sampling Examples) package helps to generate artificial data based on sampling methods and smoothed bootstrap approach. This package has well defined accuracy functions to do the tasks quickly.
 
-
+We attempted to use this package for these data. However, we found that ROSE requires the response variable to only contain two factors. Had this worked correctly, the majority classes would have been under-sampled to around 1000 observations. At the same time, the minority classes would have observations add via synthetic data generation algorithm to around 1000 observations per level. 
 
 ```{r, eval=F}
+# This Code is not used by our analysis 
 library(ROSE)
 
-WineQualityDataFrame$quality <- as.factor(WineQualityDataFrame$quality)
+# Store quality as a factor
+WineQualityDataFrame$quality <- as.lev(WineQualityDataFrame$quality)
 
-data_balanced_both <- ovun.sample(quality ~ ., data = WineQualityDataFrame, method = "both", p=0.5, N=2000, seed = 1)$data
+# Undersample and Synthetic Data Generation on factors
+data_balanced_both <- ovun.sample(quality ~ ., data = WineQualityDataFrame, method = "both", p=0.5, N=1000, seed = 1)$data
 
 ```
 
+Instead, we manually over-sampled and under-sampled each level of quality. Levels 3,4,8, and 9 required the over-sampling technique. These quality levels contained less than 1000 observation, which is an arbitrary threshold that we decided each quality level should be. To over-sample we selected all of the observations in 3-4 and 8-9, the duplicated them until each level contain about 1000 observations.
+```{r}
+# Extract rows where quality is level 3 and repeat until about 1000 rows (Over Sampling)
+quality3 <- WineQualityDataFrame[which( WineQualityDataFrame$quality == 3 ), ]
+quality3 <- do.call("rbind", replicate(33, quality3, simplify = FALSE))
+
+# Extract rows where quality is level 4 and repeat until about 1000 rows (Over Sampling)
+quality4 <- WineQualityDataFrame[ which(WineQualityDataFrame$quality == 4) , ]
+quality4 <- do.call("rbind", replicate(5, quality4, simplify = FALSE))
+
+# Extract rows where quality is level 8 and repeat until about 1000 rows (Over Sampling)
+quality8 <- WineQualityDataFrame[ which(WineQualityDataFrame$quality == 8) , ]
+quality8 <- do.call("rbind", replicate(5, quality8, simplify = FALSE))
+
+# Extract rows where quality is level 9 and repeat until about 1000 rows (Over Sampling)
+quality9 <- WineQualityDataFrame[ which(WineQualityDataFrame$quality == 9) , ]
+quality9 <- do.call("rbind", replicate(200, quality9, simplify = FALSE))
+```
+
+Quality levels 5-7 required the under-sampling technique. These levels contained more than 1000 observations. The `sample()` function is used to select 1000 random observations from each level.
+```{r}
+# Random sample of 1000 from levels 5-7 (Under-Sampling)
+quality5 <- WineQualityDataFrame[ sample( which( WineQualityDataFrame$quality == 5 ) , 1000 ) , ]
+quality6 <- WineQualityDataFrame[ sample( which( WineQualityDataFrame$quality == 6 ) , 1000 ) , ]
+quality7 <- WineQualityDataFrame[ sample( which( WineQualityDataFrame$quality == 7 ) , 1000 ) , ]
+```
+
+Then each data frame is combined together and reassigned to the `WineQualityDataFrame` data frame
+```{r}
+WineQualityDataFrame <-rbind(quality3,
+                              quality4,
+                              quality5,
+                              quality6,
+                              quality7,
+                              quality8,
+                              quality9)
+```
+
+Now the frequency of each `quality` level has about 1000 observations: 
+```{r}
+table(WineQualityDataFrame$quality)
+
+hist(WineQualityDataFrame$quality, 
+     xlab = "Quality",
+     main = "Frequency of Each Quality Catagory"
+     )
+```
 
 \clearpage
 
-### Splitting data into training and testing
+## Generating Training and Testing Data Sets
+
+To get training data a random sample of 80% of the balanced data is assigned to a new data frame `picked`. To generate the `training` data frame `picked` are selected from `WineQualityDataFrame`. The testing data is generated by removing `picked` from `WineQualityDataFrame`.
+
+Then one-hot encoding encoding is preformed on the quality variable in the `training` and `testing` data frames. In order for one hot encoding to work correctly the levels of quality must start at 0. To do this we simply subtract three from the `quality` column before splitting the data into testing and training sets
 
 ```{r}
 # Get 80% of the rows from the data set 
-sample_size <- round(nrow(WineQualityDataFrame) * 0.8)
+sampleSize <- round(nrow(WineQualityDataFrame) * 0.8)
 
 # setting random seed to make results repeatable
 set.seed(1234) 
@@ -102,8 +169,10 @@ set.seed(1234)
 # Subtract three from the quality column so quality levels start at zero
 WineQualityDataFrame$quality <- WineQualityDataFrame$quality -3
 
+# Picking a random sample equal to the sample size
+picked <- sample(seq_len(nrow(WineQualityDataFrame)),size = sampleSize)
+
 # Separate data into training and testing sets
-picked <- sample(seq_len(nrow(WineQualityDataFrame)),size = sample_size)
 training <- WineQualityDataFrame[picked,]
 testing <- WineQualityDataFrame[-picked,]
 
@@ -114,7 +183,7 @@ yTest <- to_categorical(testing$quality, num_classes = 7)
 
 ```
 
-## Neural network for Wine Quality
+## Neural Network for Wine Quality
 
 This is where we tried to improve our accuracy. One way we found that was somewhat successful
 was to increase the number of epochs. We think Elena chose 20 epochs because she had a smaller data
@@ -131,35 +200,20 @@ increase input_shape from 4 to 11 -> ~80%
 increase first layer units from 64 to 128 -> ~81%
 increase second layer units from 64 to 128 -> ~88%
 
-
-increased the sample_size from 120 to 500 -> increased 43% to 57% accuracy 
-Removed two layers and had only one dropout layer at 25% -> accuracy: 0.5941
-Removed two layers, removed dropout rate, now only look at 7 features, added regularization to second hidden layer -> 0.6277056
-added third hidden layer, reduced first layer from 128 to 7 nodes, added regularization to three hidden layers -> 0.5844156
-removed regularization from middle hidden layer -> 0.5454546
-removed regularization from first hidden layer -> 0.5887446
-add regularization to middle layer -> 0.5627705
-7 hidden layer, layer 1 128 nodes, layers 2-7 64 nodes, regularization on layers 4 and 7 -> 0.5021645
-add bias of 2.0 to first layer -> 0.5454546
-3 hidden layers, regularization on last 2, bias of 2.0 on first layer -> 0.4935065
-same as above but reg on hidden layers 1 and 3 -> 0.5324675
-increase nodes in first layer back up from 7 to 128 -> 0.6190476
-move bias from input to output node -> 0.5584416
-add alcohol col as a parameter -> 100% (not the good 100 tho lol)
-reduce nodes in input layer to 8 from 128 -> 100%
 L1 = https://www.analyticssteps.com/blogs/l2-and-l1-regularization-machine-learning
 
 Wow!!! Changed loss to binary_crossentropy -> accuracy: 0.8773
 No increase in accuracy by changing epochs to 300
 
 ### Without Regularization
+
 ```{r, echo=FALSE , eval=FALSE}
 
 wineModel = keras_model_sequential() %>%
-  layer_dense(units = 32, activation = "relu",input_shape=(11)) %>%
-  layer_dense(units = 32, activation = "relu") %>%
-  layer_dense(units = 32, activation = "relu") %>%
-  layer_dense(units = 32, activation = "relu")) %>%
+  layer_dense(units = 96, activation = "relu",input_shape=(11)) %>%
+  layer_dense(units = 96, activation = "relu") %>%
+  layer_dense(units = 96, activation = "relu") %>%
+  layer_dense(units = 96, activation = "relu") %>%
   layer_dense(units = ncol(yTr), activation = "softmax")
 
 
@@ -176,11 +230,12 @@ history <- wineModel %>%
   fit(
     x = xTr, # input is the first 4 columns of the dataframe
     y = yTr, # label is the last column
-    epochs = 50
+    epochs = 100
   )
 
 ```
 
+#### Model Evaluation
 ```{r, eval=FALSE}
 plot(history)
 summary(wineModel)
@@ -188,14 +243,14 @@ wineModel %>% evaluate(xTest, yTest)
 ```
 
 
-### With l1 Regularization
+### With L1 Regularization
 ```{r, echo=FALSE , eval=FALSE}
 
 wineModel = keras_model_sequential() %>%
-  layer_dense(units = 32, activation = "relu",input_shape=(11), regularizer_l1(l = 0.01)) %>%
-  layer_dense(units = 32, activation = "relu", regularizer_l1(l = 0.01)) %>%
-  layer_dense(units = 32, activation = "relu", regularizer_l1(l = 0.01)) %>%
-  layer_dense(units = 32, activation = "relu", regularizer_l1(l = 0.01)) %>%
+  layer_dense(units = 96, activation = "relu",input_shape=(11), regularizer_l1(l = 0.01)) %>%
+  layer_dense(units = 96, activation = "relu", regularizer_l1(l = 0.01)) %>%
+  layer_dense(units = 96, activation = "relu", regularizer_l1(l = 0.01)) %>%
+  layer_dense(units = 96, activation = "relu", regularizer_l1(l = 0.01)) %>%
   layer_dense(units = ncol(yTr), activation = "softmax")
 
 
@@ -212,26 +267,15 @@ history <- wineModel %>%
   fit(
     x = xTr, # input is the first 4 columns of the dataframe
     y = yTr, # label is the last column
-    epochs = 50
+    epochs = 100
   )
 
 ```
+#### Model Evaluation
 ```{r, eval=FALSE}
 plot(history)
 summary(wineModel)
-```
-
-# Evaluate the model
-```{r, eval=FALSE}
 wineModel %>% evaluate(xTest, yTest)
-
-# Predicting likelihood of all categories:
-result <- wineModel %>% predict(xTest)
-
-result
-
-testing[,11]
-
 ```
 
 # Red and White Wine Classification
@@ -246,12 +290,10 @@ WineQualityDataFrame <- rbind(WhiteWineQualityDataFrame, RedWineQualityDataFrame
 
 WineQualityDataFrame <- subset(WineQualityDataFrame, select = -c(quality))
 
-#WineQualityDataFrame <- subset(WineQualityDataFrame, select = -c(quality))
-
 ```
 
 
-# Exploritory Analysis
+## Exploritory Analysis
 
 ```{r}
 table(WineQualityDataFrame$Type) %>% 
@@ -260,15 +302,10 @@ table(WineQualityDataFrame$Type) %>%
 ```
 
 ```{r}
-library(ROSE)
+red <- WineQualityDataFrame[ sample( which( WineQualityDataFrame$Type == 1 ) , 1500 ) , ]
+white <- WineQualityDataFrame[ sample( which( WineQualityDataFrame$Type == 0 ) , 1500 ) , ]
 
-WineQualityDataFrame$quality <- as.factor(WineQualityDataFrame$Type)
-
-underSampledWine <- ovun.sample(Type ~ .,
-                                data = WineQualityDataFrame,
-                                method = "under",
-                                N=3000,
-                                seed = 1)$data
+underSampledWine <- rbind(red, white)
 
 
 table(underSampledWine$Type) %>% 
@@ -296,10 +333,10 @@ yTest <- to_categorical(testing$Type, num_classes = 2)
 
 # Model
 
-```{r, echo=FALSE, eval=FALSE}
+```{r, echo=FALSE, eval=T}
 
 wineModel = keras_model_sequential() %>%
-  layer_dense(units = 32, activation = "relu",input_shape=(11), regularizer_l1(l = 0.01)) %>%
+  layer_dense(units = 32, activation = "relu",input_shape=(10)) %>%
   layer_dense(units = 32, activation = "relu", regularizer_l1(l = 0.01)) %>%
   layer_dense(units = 32, activation = "relu", regularizer_l1(l = 0.01)) %>%
   layer_dense(units = 32, activation = "relu", regularizer_l1(l = 0.01)) %>%
@@ -312,8 +349,8 @@ wineModel %>% compile(
   metrics = "accuracy"
 )
 
-xTr <- as.matrix(training[,1:11]) # need to convert to a matrix
-xTest <- as.matrix(testing[,1:11])
+xTr <- as.matrix(training[,1:10]) # need to convert to a matrix
+xTest <- as.matrix(testing[,1:10])
 
 history <- wineModel %>% 
   fit(
@@ -323,8 +360,8 @@ history <- wineModel %>%
   )
 
 ```
-
-```{r, eval=FALSE}
+#### Model Evaluation
+```{r, eval=T}
 plot(history)
 summary(wineModel)
 wineModel %>% evaluate(xTest, yTest)
