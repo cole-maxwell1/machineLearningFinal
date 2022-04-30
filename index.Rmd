@@ -333,7 +333,7 @@ yTest <- to_categorical(testing$Type, num_classes = 2)
 
 # Model
 
-```{r, echo=FALSE, eval=T}
+```{r, echo=FALSE, eval=F}
 
 wineModel = keras_model_sequential() %>%
   layer_dense(units = 32, activation = "relu",input_shape=(10)) %>%
@@ -361,7 +361,7 @@ history <- wineModel %>%
 
 ```
 #### Model Evaluation
-```{r, eval=T}
+```{r, eval=F}
 plot(history)
 summary(wineModel)
 wineModel %>% evaluate(xTest, yTest)
