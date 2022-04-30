@@ -1,1 +1,3 @@
-# machineLearningFinal
+# Wine Data Machine Learning Models
+
+These data were obtained from the University of California Irvine's (UCI) [Machine Learning Repository](https://archive.ics.uci.edu/ml/datasets/wine). These data are the results of a chemical analysis of wines grown in the same region in Italy but derived from three different cultivars. These models attempt to determine the `quality` of both white and red wines, and predict the `Type` of wine (White or Red). View our analysis [here](https://cole-maxwell1.github.io/machineLearningFinal/)
