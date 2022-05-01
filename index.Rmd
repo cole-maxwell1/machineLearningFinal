@@ -7,17 +7,17 @@ output:
 ---
 
 ```{r setup, include=FALSE}
+library(knitr)
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
 These data were obtained from the University of California Irvine's (UCI) [Machine Learning Repository](https://archive.ics.uci.edu/ml/datasets/wine). These data are the results of a chemical analysis of wines grown in the same region in Italy but derived from three different cultivars. These models attempt to determine the `quality` of both white and red wines, and predict the `Type` of wine (White or Red).
 
-## Data Pre-Processing 
+# Data Pre-Processing 
 
-The data are loaded into r data frames from the `.csv` files obtained from the UCI Machine Learning Repository. There are two files that are separated by red and white types of wine. Once each file is loaded as a data frame, `r rbind()` is used to combine the two data frames into one larger frame that can be used for the machine learning models.
+The data are loaded into r data frames from the `.csv` files obtained from the UCI Machine Learning Repository. There are two files that are separated by red and white types of wine. Once each file is loaded as a data frame, `rbind` is used to combine the two data frames into one larger frame that can be used for the machine learning models.
 
 ```{r, style="display: flex;"}
-library(knitr)
 library(keras)
 library(tensorflow)
 library(ggplot2)
@@ -30,13 +30,13 @@ RedWineQualityDataFrame <- read.csv("winequality-red.csv", sep = ";")
 WineQualityDataFrame <- rbind(WhiteWineQualityDataFrame, RedWineQualityDataFrame)
 
 ```
-The variables and their types types:
+The variables and their types:
 ```{r}
 str(WineQualityDataFrame) 
 ```
 
 
-Summary Statistic of each variable in the data frame:
+Summary statistics of each variable in the data frame:
 ```{r}
 summary(WineQualityDataFrame)
 ```
@@ -59,15 +59,15 @@ heatmap(WineQualityCorrelation,
         )
 ```
 
-There does not seem to be any clear pattern from this heatmap, and all variable like they be highly interconnected. There is no clear variable that should be removed to lower the complexity of the initial model. 
+There does not seem to be any clear pattern from this heatmap, and all variables look like they be highly interconnected. There is no clear variable that should be removed to lower the complexity of the initial model. 
 
 \clearpage
 
 Next the frequency of each quality level should be evaluated. Since quality is the variable that the machine learning model should predict, each level should be "balanced" or have roughly equal observations at each level to ensure that the machine learning model can produce an accurate model. 
+
 ```{r}
-table(WineQualityDataFrame$quality) %>% 
-  kable(col.names = c("Quality Level", "Frequency"),
-        )
+table(WineQualityDataFrame$quality) %>%
+  kable(col.names = c("Quality Level", "Frequency"))
 
 hist(WineQualityDataFrame$quality, 
      xlab = "Quality",
@@ -75,7 +75,7 @@ hist(WineQualityDataFrame$quality,
      )
 ```
 
-From the frequency table and histogram there is a clear imbalance in these data. The `quality` levels 2, 3, and 4 are over represented in these data. If this imbalance in the data is not corrected it causes the performance of existing classifiers to get biased towards majority class. Machine learning algorithms also assume that the data set has balanced class distributions.
+From the frequency table and histogram there is a clear imbalance in these data. The `quality` levels 2, 3, and 4 are over represented in these data. If this imbalance in the data is not corrected it causes the performance of existing classifiers to become biased towards majority class. Machine learning algorithms also assume that the data set has balanced class distributions.
 
 ## Dealing With Imbalanced Classification
 
@@ -88,7 +88,7 @@ Sampling Methods can be used to modify an imbalanced data into balanced distribu
 
 The ROSE (Random Over Sampling Examples) package helps to generate artificial data based on sampling methods and smoothed bootstrap approach. This package has well defined accuracy functions to do the tasks quickly.
 
-We attempted to use this package for these data. However, we found that ROSE requires the response variable to only contain two factors. Had this worked correctly, the majority classes would have been under-sampled to around 1000 observations. At the same time, the minority classes would have observations add via synthetic data generation algorithm to around 1000 observations per level. 
+We attempted to use this package for these data. However, we found that ROSE requires the response variable to only contain two factors. Had this worked correctly, the majority classes would have been under-sampled to around 1000 observations. At the same time, the minority classes would have had observations added via synthetic data generation algorithm to around 1000 observations per level. 
 
 ```{r, eval=F}
 # This Code is not used by our analysis 
@@ -102,7 +102,7 @@ data_balanced_both <- ovun.sample(quality ~ ., data = WineQualityDataFrame, meth
 
 ```
 
-Instead, we manually over-sampled and under-sampled each level of quality. Levels 3,4,8, and 9 required the over-sampling technique. These quality levels contained less than 1000 observation, which is an arbitrary threshold that we decided each quality level should be. To over-sample we selected all of the observations in 3-4 and 8-9, the duplicated them until each level contain about 1000 observations.
+Instead, we manually over-sampled and under-sampled each level of quality. Levels 3,4,8, and 9 required the over-sampling technique. These quality levels contained less than 1000 observations, which is an arbitrary threshold that we decided each quality level should be. To over-sample we selected all of the observations in 3-4 and 8-9, the duplicated them until each level contain about 1000 observations.
 ```{r}
 # Extract rows where quality is level 3 and repeat until about 1000 rows (Over Sampling)
 quality3 <- WineQualityDataFrame[which( WineQualityDataFrame$quality == 3 ), ]
@@ -142,7 +142,8 @@ WineQualityDataFrame <-rbind(quality3,
 
 Now the frequency of each `quality` level has about 1000 observations: 
 ```{r}
-table(WineQualityDataFrame$quality)
+table(WineQualityDataFrame$quality) %>% 
+  kable(col.names = c("Quality Level", "Frequency"))
 
 hist(WineQualityDataFrame$quality, 
      xlab = "Quality",
@@ -156,7 +157,7 @@ hist(WineQualityDataFrame$quality,
 
 To get training data a random sample of 80% of the balanced data is assigned to a new data frame `picked`. To generate the `training` data frame `picked` are selected from `WineQualityDataFrame`. The testing data is generated by removing `picked` from `WineQualityDataFrame`.
 
-Then one-hot encoding encoding is preformed on the quality variable in the `training` and `testing` data frames. In order for one hot encoding to work correctly the levels of quality must start at 0. To do this we simply subtract three from the `quality` column before splitting the data into testing and training sets
+Then one-hot encoding is preformed on the quality variable in the `training` and `testing` data frames. In order for one hot encoding to work correctly the levels of quality must start at 0. To do this we simply subtract three from the `quality` column before splitting the data into testing and training sets
 
 ```{r}
 # Get 80% of the rows from the data set 
@@ -183,31 +184,23 @@ yTest <- to_categorical(testing$quality, num_classes = 7)
 
 ```
 
-## Neural Network for Wine Quality
+# Neural Network for Wine Quality
 
-This is where we tried to improve our accuracy. One way we found that was somewhat successful
-was to increase the number of epochs. We think Elena chose 20 epochs because she had a smaller data
-set but since ours was larger we needed more. We found that after 300 we got vastly diminishing
-returns, so we settled on 300 for the time being. We are still looking at ways of improving accuracy.
+This model used the `categorical_crossentropy` loss function to try to predict each category of wine quality. Since we are using all the features of these data the input shape is set to 11. We found that four hidden layers each with 96 units produced the best results. 100 epochs yielded the highest accuracy with the least model over fitting.
 
-initial accuracy -> ~43%
-drop Id feature -> no improvement in accuracy
-increase epochs to 100 -> accuracy raised to ~53%
-increase epochs to 1000 -> accuracy raised to ~67%
-decrease epochs to 300 -> accuracy lowered to ~60%
-increase units from 64 to 128 in first layer -> ~56%
-increase input_shape from 4 to 11 -> ~80%
-increase first layer units from 64 to 128 -> ~81%
-increase second layer units from 64 to 128 -> ~88%
+Other things we tried:
 
-L1 = https://www.analyticssteps.com/blogs/l2-and-l1-regularization-machine-learning
-
-Wow!!! Changed loss to binary_crossentropy -> accuracy: 0.8773
-No increase in accuracy by changing epochs to 300
+* Increased epochs to 100
+* Increased epochs to 1000, severely over fit
+* Decreased epochs to 300, severely over fit
+* Increased units from 96 to 128 in first layer, severely over fit
+* Increased hidden layer to 5 and 6, severely over fit 
+* Added dropout of 20%, severely decreased accuracy
 
 ### Without Regularization
 
-```{r, echo=FALSE , eval=FALSE}
+The first model contains no regularization on any hidden layer.
+```{r, eval=T, results='hide'}
 
 wineModel = keras_model_sequential() %>%
   layer_dense(units = 96, activation = "relu",input_shape=(11)) %>%
@@ -236,21 +229,25 @@ history <- wineModel %>%
 ```
 
 #### Model Evaluation
-```{r, eval=FALSE}
+
+This model classifies wine quality correctly about 70-74% of the time. However, the model is overfitting these data.
+```{r, eval=T}
 plot(history)
 summary(wineModel)
 wineModel %>% evaluate(xTest, yTest)
 ```
 
 
-### With L1 Regularization
-```{r, echo=FALSE , eval=FALSE}
+### With L2 Regularization
+
+Now L2 regularization is added to each hidden layer. L2 regularization can deal with the multicollinearity (independent variables are highly correlated) problems through constricting the coefficient and by keeping all the variables. This fits to our data best so we used this type of regularization. L2 regression can be used to estimate the significance of predictors and based on that it can penalize the insignificant predictors.
+```{r, results='hide' , eval=T}
 
 wineModel = keras_model_sequential() %>%
-  layer_dense(units = 96, activation = "relu",input_shape=(11), regularizer_l1(l = 0.01)) %>%
-  layer_dense(units = 96, activation = "relu", regularizer_l1(l = 0.01)) %>%
-  layer_dense(units = 96, activation = "relu", regularizer_l1(l = 0.01)) %>%
-  layer_dense(units = 96, activation = "relu", regularizer_l1(l = 0.01)) %>%
+  layer_dense(units = 96, activation = "relu",input_shape=(11), regularizer_l2(l = 0.01)) %>%
+  layer_dense(units = 96, activation = "relu", regularizer_l2(l = 0.01)) %>%
+  layer_dense(units = 96, activation = "relu", regularizer_l2(l = 0.01)) %>%
+  layer_dense(units = 96, activation = "relu", regularizer_l2(l = 0.01)) %>%
   layer_dense(units = ncol(yTr), activation = "softmax")
 
 
@@ -272,13 +269,17 @@ history <- wineModel %>%
 
 ```
 #### Model Evaluation
-```{r, eval=FALSE}
+
+This model is classifies wine quality correctly about 70-74% of the time. So, L2 regularization gives mixed and inconsistent results, but typically reduces the model overfitting.
+```{r, eval=T}
 plot(history)
 summary(wineModel)
 wineModel %>% evaluate(xTest, yTest)
 ```
 
 # Red and White Wine Classification
+
+Next, we tried to see of we could predict the type of wine (Red or White) based on the same variables on the data. To start, a binary classification variable of `Type` is added to the data to indicate whether a wine belongs to the red or white class. This will be used to do binary cross entropy for the machine learning model. The `quality` column is also dropped because we do not want to use quality as a predictor of wine type.
 
 ```{r}
 #Loading a csv file
@@ -295,11 +296,15 @@ WineQualityDataFrame <- subset(WineQualityDataFrame, select = -c(quality))
 
 ## Exploritory Analysis
 
+There is a similar class in balance problem as the prior data set had. Red wine is severely over represented and is the majority class in these data.
+
 ```{r}
 table(WineQualityDataFrame$Type) %>% 
   kable(col.names = c("Type Level", "Frequency"),
         )
 ```
+
+To solve this imbalance in the classes we used under-sampling to take a large simple random sample to balance the classes. Since there are just over 1500 observations in the white wine class, 1500 is the sample size used to retain as many observations as possible while still using the under-sampling technique. 
 
 ```{r}
 red <- WineQualityDataFrame[ sample( which( WineQualityDataFrame$Type == 1 ) , 1500 ) , ]
@@ -313,6 +318,11 @@ table(underSampledWine$Type) %>%
         )
 ```
 
+## Generating Training and Testing Data Sets
+
+To get training data a random sample of 80% of the balanced data is assigned to a new data frame `picked`. To generate the `training` data frame `picked` are selected from `WineQualityDataFrame`. The testing data is generated by removing `picked` from `WineQualityDataFrame`.
+
+Then one-hot encoding is preformed on the quality variable in the `training` and `testing` data frames. Since the `Type` variable is already in a binary format it can be one-hot encoded without any manipulation. 
 
 ```{r}
 
@@ -331,15 +341,17 @@ yTest <- to_categorical(testing$Type, num_classes = 2)
 
 ```
 
-# Model
+## Model
 
-```{r, echo=FALSE, eval=F}
+This model uses the `binary_crossentropy` loss function to predict the `Type` of wine. Since we are using all the features of these data the input shape is set to 11. We found that four hidden layers each with 32 units produced the best results. 50 epochs yielded the highest accuracy with the least model over fitting. We also found that adding regularization to this model did not improve the accuracy.
+
+```{r, results='hide', eval=T}
 
 wineModel = keras_model_sequential() %>%
-  layer_dense(units = 32, activation = "relu",input_shape=(10)) %>%
-  layer_dense(units = 32, activation = "relu", regularizer_l1(l = 0.01)) %>%
-  layer_dense(units = 32, activation = "relu", regularizer_l1(l = 0.01)) %>%
-  layer_dense(units = 32, activation = "relu", regularizer_l1(l = 0.01)) %>%
+  layer_dense(units = 32, activation = "relu",input_shape=(11)) %>%
+  layer_dense(units = 32, activation = "relu") %>%
+  layer_dense(units = 32, activation = "relu") %>%
+  layer_dense(units = 32, activation = "relu") %>%
   layer_dense(units = ncol(yTr), activation = "softmax")
 
 
@@ -349,8 +361,8 @@ wineModel %>% compile(
   metrics = "accuracy"
 )
 
-xTr <- as.matrix(training[,1:10]) # need to convert to a matrix
-xTest <- as.matrix(testing[,1:10])
+xTr <- as.matrix(training[,1:11]) # need to convert to a matrix
+xTest <- as.matrix(testing[,1:11])
 
 history <- wineModel %>% 
   fit(
@@ -361,7 +373,10 @@ history <- wineModel %>%
 
 ```
 #### Model Evaluation
-```{r, eval=F}
+
+This model can predict the type of wine based on these parameters with about 96% accuracy. 
+
+```{r, eval=T}
 plot(history)
 summary(wineModel)
 wineModel %>% evaluate(xTest, yTest)
