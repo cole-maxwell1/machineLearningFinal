@@ -296,7 +296,7 @@ WineQualityDataFrame <- subset(WineQualityDataFrame, select = -c(quality))
 
 ## Exploritory Analysis
 
-There is a similar class in balance problem as the prior data set had. Red wine is severely over represented and is the majority class in these data.
+There is a similar class in balance problem as the prior data set had. White wine is severely over represented and is the majority class in these data.
 
 ```{r}
 table(WineQualityDataFrame$Type) %>% 
